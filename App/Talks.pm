@@ -14,20 +14,22 @@ use Web::Simple 'App::Talks';
     sub template_out {
         my ($self, $file, $content) = @_;
         my $template = Template->new({
-            INCLUDE_PATH => "$Bin/../templates",
+            INCLUDE_PATH => "templates",
             WRAPPER      => "wrapper.tt",
             POST_CHOMP   => 1,
         });
-
-        $template->process($file, $content)
+        my $output;
+        $template->process($file, $content, \$output)
             || die $template->error();
+        return $output;
     }
 
     sub find_talk_dirs {
         my $self = @_;
         my @dirs = File::Find::Rule->directory
                         ->in("talks");
-                        warn Dumper \@dirs;
+        ## this seems hacky
+        shift @dirs;
         return \@dirs;
     }
 
