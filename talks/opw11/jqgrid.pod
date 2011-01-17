@@ -1,0 +1,393 @@
+=head1 Catalyst, REST, and jQgrid for Your Data Table Needs!
+
+=head1 Who Am I
+
+=over
+
+=item Devin Austin
+
+=item L<dhoss@cpan.org|mailto:dhoss@cpan.org>
+
+=back
+
+=head1 What
+
+Catalyst and jQgrid, using REST.
+
+=over 
+
+=item *
+
+L<Catalyst|http://search.cpan.org/dist/Catalyst-Runtime/> is a web framework written in perl.
+
+=item *
+
+L<jQgrid|http://www.trirand.com/blog/> is a L<jQuery|http://www.jquery.com> plugin to create grids for data.
+
+=item *
+
+L<REST|http://en.wikipedia.org/wiki/Representational_State_Transfer> is a protocol suited for the web and AJAX-y web applications.
+
+=back
+
+=head1 Where Would I Want to Use jQgrid?
+
+Anywhere you need data (usually bulk amounts) displayed for quick sorting, searching, pagination, and CRUD operations in a relatively portable manner.  In this case, a web interface that you want to list a given set of records from a database from, and manipulate them.
+
+=head1 Lookie!
+
+
+G<pix/grid.png>
+
+
+=head1 When Would I want to Use jQgrid?
+
+=over
+
+=item *
+
+You have a large dataset that you want to be able to do quick CRUD on, and trivially "clicked through"
+
+=item *
+
+You don't want to spend a lot of time on setting up an interface to display your data.
+
+=back
+
+=head1 Why Do I want to Use a Datagrid? And Why with REST?
+
+=over 
+
+=item *
+
+It's quick to set up.
+
+=over
+
+=item *
+
+Hardly any configuration/hacking required to create a usable UI.
+
+=back
+
+=item * 
+
+It gives you a sane API 
+
+=over
+
+=item *
+ 
+Your data grid basically acts as a client to your web application.
+
+=back
+
+=back
+
+=head1 How
+
+=over
+
+=item *
+
+Catalyst application with a data source.
+
+=item *
+
+jQgrid via JSON.
+
+=back
+
+=head1 Catalyst Example
+
+
+
+=over 
+
+=item *
+
+sub create
+
+=over
+
+=item *
+
+create_GET/create_POST
+
+=back
+
+=back
+
+=over 
+
+
+=item *
+
+sub read
+
+=over 
+
+=item *
+
+read_GET
+
+=back
+
+=back
+
+=over
+
+=item *
+
+sub update
+
+=over
+
+=item *
+
+update_GET/update_PUT
+
+=back
+
+=back
+
+=over
+
+=item *
+
+sub delete
+
+=over 
+
+=item *
+
+delete_GET
+
+=back
+
+=back
+
+=cut
+
+=head1 A Little Chained Goodness
+
+=over 
+
+=item *
+
+Chain base:
+
+=item *
+
+=begin perl
+
+sub base : Chained('/') PathPart('') CaptureArgs(0) {
+    my $order = # set up sort order here    
+    my $rs = $c->model("Database::Entry")->search({},
+        { 
+         rows => $data->{rows} || 10, 
+         page => $data->{page} || 1, 
+         order_by => $order 
+        }
+    );
+    $c->stash( rs => $rs );
+}
+
+=end perl
+
+=back
+
+=head1 Example Sorting 
+
+=begin perl
+
+ my $order = ( exists( $data->{sidx} ) && exists( $data->{sord} ) ) 
+ ? $data->{sidx} . " " . $data->{sord} 
+ : { "-desc" => [ qw/created_at/ ] };
+
+=end perl
+
+
+=head1 Read/List
+
+=begin perl
+
+sub index : Chained('base') PathPart('') Args(0) ActionClass('REST') {
+    my ( $self, $c ) = @_;
+    my $data = $c->req->data || $c->req->params;
+    my $rs = $c->stash->{'rs'};
+    $c->stash( posts => $self->serialize_posts($c, $rs, $data) );
+}
+
+=end perl
+
+=head1 The serialize_posts method
+
+=begin perl
+
+sub serialize_posts {
+    my ( $self, $c, $rs, $data) = @_;
+    my @posts;
+    push @posts, { 
+        'page' => $data->{page}, rows => [], 'records' => $rs->count, 'total' => $rs->pager->last_page,
+    };
+    while ( my $post = $rs->next ) {
+        push @{ $posts[0]->{rows} }, { id => ..., cells => ... };
+    }
+    return @posts;
+}
+
+=end perl
+
+=head1 The General Data Structure
+
+=begin perl
+
+{
+  'id'   => $post->entryid, 
+  'cell' => 
+    [ 
+      # your cell data goes here
+      $post->postid, $post->title, # and so on...
+    ],
+}
+
+=end perl
+
+=head1 REST GET method
+
+=begin perl
+
+sub index_GET {
+    my ( $self, $c ) = @_;
+    my @posts = $c->stash->{posts};
+    return $self->status_ok( $c, entity => @posts );
+}
+
+=end perl
+
+=head1 The Rest of the CRUD Methods
+
+=over
+
+=item *
+ 
+The bulk of the difficulty has been taken care of.  Especially that which is concerned with jQgrid.  
+
+=item * 
+
+At this point, everything is regular HTTP/REST.  jQgrid does a great job of adhering to REST so all you have to worry about is sending your app the data you need to manipulate.
+
+=back
+
+
+=head1 jQgrid Set UP
+
+=begin html
+
+<pre>
+    $("#displaydiv").jqGrid({
+        // url, generic config goes here
+        datatype: "json",
+        mtype: "GET",
+        ajaxGridOptions: {
+            contentType: 'application/json'
+        },
+        ajaxRowOptions: {
+            contentType: 'application/json',
+            type: 'PUT'
+        },
+        serializeRowData: function(data) {
+            return JSON.stringify(data);
+        },
+        colNames: [ column header names ],
+        colModel: { column definitions },
+    });
+</pre>
+
+=end html
+
+=head1 Example Column Headers
+
+=begin html
+
+<pre>
+
+ colNames: [
+  'Entry ID', 'Title', 'Date Created', 
+  'Date Updated', 'Body' 
+ ],
+
+</pre>
+
+=end html
+
+=head1 Example Column Model
+
+=begin html
+
+<pre>
+ colModel: [
+        {
+            name: 'entryid',
+            index: 'entryid',
+            width: 55
+        },
+ ]
+
+</pre>
+
+=end html
+
+=head1 OnClick Editing
+
+=begin html
+
+<pre>
+onSelectRow: function(id) {
+            ajaxGridOptions: {
+                contentType: 'application/json'
+            };
+            rowid = id;
+            if (id && id !== lastsel) {
+                $('#tposts').restoreRow(lastsel);
+                lastSel = id;
+            }
+            $('#tposts').editRow(
+              id, true, '', '', update_url
+            );
+        },
+</pre>
+
+=end html
+
+=head1 Summation of Markup/JS
+
+You need:
+
+=over
+
+=item *
+
+=begin html
+
+
+
+&lt;table id="tposts" style="padding-bottom: 10px"&gt;&lt;/table&gt
+
+</pre>
+
+=end html
+
+=item *
+
+The above Javascript.
+
+=end
+
+=head1 Demo!
+
+=head1 Questions?
+
+
+=cut

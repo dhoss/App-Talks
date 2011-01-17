@@ -1,0 +1,6 @@
+<h2>Talks</h2>
+<ul>
+[% FOR directory IN directories %]
+<li><a href="/[% directory %]">[% directory %]</a>
+[% END %]
+</ul>

@@ -1,0 +1,601 @@
+=head1 Form::Sensible::Reflector::DBIC
+
+Making form generation easy (sorta) again.
+
+=head1 Who
+
+=over 12
+
+=item  Jason Kuri (Form::Sensible)
+
+=item  Myself, Devin Austin  (Form::Sensible::Reflector::DBIC)
+
+=item  Everyone who's wanted a simple form management system, ever
+
+=back
+
+=head1 What
+
+=over 12
+
+=head2 Form::Sensible 
+
+=item  Simple, perl data structure based, Moose oriented form management system
+
+=head2  Reflector
+
+=item  Base class for reflecting forms off of things
+
+=head2 Reflector::DBIC
+
+=item  Class for reflecting off of DBIC schemas
+
+=back
+
+=head1 When
+
+=over 12
+
+=item  When you need fast prototypes of forms
+
+=item  Large forms you wanted automated, not by hand
+
+=item  When you want to define forms in ONE spot, not four
+
+=back 
+
+=head1 Where
+
+=over 12
+
+=item  *
+
+Your DBIC schema!
+
+=item *
+
+=begin perl
+
+title => {
+  data_type   => 'varchar',
+  size        => 150,
+  is_nullable => 0,
+},
+
+=end perl
+
+=item *
+
+I don't know about you, but that looks like it could lend itself to a form definition pretty easily to me.
+
+=back
+
+=head1 Why
+
+=over 12
+
+=head2 Because you: 
+
+=item *
+
+Hate creating forms (they suck ass)
+
+=over
+
+=item *
+
+Whether it's by hand via HTML or another form generation system, it's generally a meticulous pain to put together forms.
+
+
+=item *
+
+It's also extremely prone to error, as humans repeating things tends to almost ensure erroneous outcome (Typos, copy/paste failure)
+
+
+=item *
+
+Customization becomes difficult if you try to just "programmatically" add fields (say, a C<< for >> loop to add multiple fields of similar type), and you really end up rewriting what has been done in this (or any sane reflector, really) anyway.
+
+=back
+
+=head1 Why (cont'd)
+
+=over
+
+=item *
+
+=begin HTML
+
+<form action="blargh" method="POST">
+  <div>
+    <label>Name:</label> <input type="text" name="user_name" />
+  </div>
+  <div>
+    <label>Email</label> <input type="text" name="email" />
+  </div>
+ ....
+</form>
+
+=end HTML
+
+=back
+
+
+=head1 Why (cont'd)
+
+BORING.
+
+
+G<pix/homer-boring-scaled.jpg>
+
+
+=head1 Why (cont'd)
+
+=over
+
+=item *
+
+Want to define your forms in ONE place when you do have to create them
+
+=back 
+
+=head1 Why (cont'd)
+
+=over
+
+=item *
+
+No offense intended to other form framework authors but I feel it's important to point out some differences here.
+
+=back
+
+=head1 Why (cont'd)
+
+=over
+
+=item *
+
+L<HTML::FormHandler|http://search.cpan.org/dist/HTML-FormHandler>
+
+=back
+
+=head1 Why (cont'd)
+
+=over
+
+=item *
+
+=begin perl
+
+    package MyApp::Form;
+    use HTML::FormHandler::Moose;
+    extends 'HTML::FormHandler';
+
+    has 'user_id' => ( is => 'rw' );
+    has 'hostname' => ( is => 'rw' );
+    has 'captcha_store' => ( is => 'rw' );
+    ....
+    1;
+
+
+=end perl
+
+=back
+
+=head1 Why (cont'd)
+
+=over 
+
+=item *
+
+For each form I want to create? Eesh.  Seems like a lot of work, especially since L<HTML::FormHandler::Model|http://search.cpan.org/~gshank/HTML-FormHandler-0.32005/lib/HTML/FormHandler/Model.pm> doesn't do much but connect your form's ability to commit to a database.
+
+=back
+
+=head1 Why (cont'd)
+
+=over 
+
+=item * 
+
+L<Rose::HTML::Form|http://search.cpan.org/dist/Rose-HTML-Objects>
+
+=back
+
+=head1 Why (cont'd)
+
+=over 
+
+=item *
+
+=begin perl
+
+  package PersonForm;
+  use base 'Rose::HTML::Form';
+  use Person;
+  sub build_form 
+  {
+    my($self) = shift;
+    $self->add_fields
+    (
+      name  => { type => 'text',  size => 25, required => 1 },
+      email => { type => 'email', size => 50, required => 1 },
+      phone => { type => 'phone' },
+    );
+  }
+
+=end perl
+
+=back
+
+=head1 Why (cont'd)
+
+=over
+
+=item *
+
+Again, not really my cup of tea.  I don't really want to have to define a method for building, validating and generating a form, especially per class.
+
+=back
+
+=head1 Why (cont'd)
+
+=over 
+
+=item *
+
+L<Rose::DBx::Garden|http://search.cpan.org/dist/Rose-DBx-Garden/>
+
+=back
+
+=head1 Why (cont'd)
+
+=over 
+
+=item *
+
+=begin perl
+
+ use Rose::DBx::Garden;
+ my $garden = Rose::DBx::Garden->new(
+         garden_prefix   => 'MyRoseGarden',    
+         perltidy_opts   => '-pbp -nst -nse', 
+         db              => My::DB->new,
+         find_schemas    => 0,          
+         force_install   => 0,          
+         debug           => 0,           
+         skip_map_class_forms => 1,     
+         include_autoinc_form_fields => 1,
+ );
+ $garden->plant('path/to/where/i/want/files');
+
+=end perl
+
+=back
+
+=head1 Why (cont'd)
+
+=over
+
+=item *
+
+...oof.  I'm really not a big fan of code generation, especially with something like a database that's subject to change, and even moreso when you're *now* introducing two places that code must be regenerated (Rose::DB::Object allows you to dump your schema from your database into its format of schema files, and DBIx::Class does as well), your database schema and now your form definitions.
+
+=back
+
+=head1 Why (cont'd)
+
+=over
+
+=item *
+
+L<Reaction|http://search.cpan.org/dist/Reaction/>
+
+=item *
+
+Yes, it's defunct, yes, mst has said that over all it didn't turn out as he wanted and isn't best practice, but I feel that there are ideas that grew out of Reaction that remain good things or have helped evolve other projects.  It's also pretty much the first legitimate attempt at a Catalyst UI layer, so it deserves a mention.
+
+=back
+
+=head1 Why (cont'd)
+
+=over
+
+=item *
+
+=begin perl
+
+ # after schema class definition, before controller definitions, etc.
+ package Test::Reaction::Model::Action;
+  use Reaction::Class;
+  use Test::Reaction::DB;
+  use aliased 'Reaction::InterfaceModel::Action::DBIC::ActionReflector';
+  my $r = ActionReflector->new;
+  $r->reflect_actions_for( 'Test::Reaction::DB::Artist' => __PACKAGE__ );
+  $r->reflect_actions_for( 'Test::Reaction::DB::Cd'     => __PACKAGE__ );
+  $r->reflect_actions_for( 'Test::Reaction::DB::Track'  => __PACKAGE__ );
+  1;
+
+=end perl
+
+=back
+
+=head1 Why (cont'd)
+
+=over
+
+=item *
+
+This is actually really cool, as it gives you a mostly sane CRUD interface to your database.  The problem is, it's Reaction.  Reaction is sort of famous for its over-engineering, and after all the set up you go through, and all the modifications to multiple things in different places (are you beginning to see the trend I see?), is this really worth it? 
+
+=back
+
+=head1 Why (cont'd)
+
+=over
+
+=item *
+
+You could argue these are layers for separation of logic!
+
+=item *
+
+You could.  But you could also argue that it doesn't help to separate things THIS much, especially when it breaks another rule of programming, in that you are not actually keeping your code de-coupled and encapsulated.  Multiple, similar things defined in multiple places instead of one, defined place?  Sounds painful.
+
+=back
+
+=head1 Why (cont'd)
+
+=over
+
+=item  *
+
+You want rapid prototyping
+
+=item *
+
+Form::Sensible::Reflector::DBIC takes your database schema and makes sane guesses at what your column definitions would look like as a form by default.
+
+=item *
+
+You can however, give it hints as to how you would actually like things to be rendered
+
+=back
+
+=head1 Why (cont'd: Rapid Prototyping Example)
+
+=begin perl
+
+    # inside your ResultSource definition:
+    type => {
+    # ...
+        render_hints =>
+          { 
+            options => [ 
+              { name => 'page', value => 'page' }, 
+              { name => 'post', value => 'post' } 
+           ] 
+         }
+    }
+
+=end perl
+
+=head1 Why (cont'd: Rapid Prototyping Example)
+
+=over 
+
+=item 
+
+Normally, Form::Sensible::Reflector::DBIC renders an C<< enum >> type as a drop-down list.  This is a case where it's actually required to use C<< render_hints >> as Form::Sensible::Reflector::DBIC will get confused on what needs to be a value and what needs to be a label, or name.
+
+=back
+
+=head1 Why (cont'd: Rapid Prototyping Example)
+
+=over
+
+=item 
+
+You might want to render an C<< enum >> as a list of checkboxes, instead of a drop-down list.  Form::Sensible allows you to do this, so Form::Sensible::Reflector::DBIC allows you to do this too.
+
+=back
+
+=head1 Why (cont'd: Rapid Prototyping Example)
+
+
+=over
+
+=item *
+
+
+=begin perl
+
+    # inside your ResultSource definition:
+    type => {
+    # ...
+        render_hints =>
+          { 
+            options => [ 
+              { name => 'page', value => 'page' }, 
+              { name => 'post', value => 'post' } 
+            ],
+
+=end perl
+
+=item *
+
+
+=begin perl
+
+            render_as => "checkboxes",
+          }
+    }
+
+=end perl
+
+=back
+
+
+=head1 Why (cont'd)
+
+=over 
+
+=item *
+
+You don't want to deal with having to create a CRUD system
+
+=over
+
+=item *
+
+CRUD systems can be extremely crippling.  Unless there are some good configuration options, you're basically leaving it up to someone else to decide how to create, read, update and delete your data.  This is definitely not ideal in any case that performance matters.
+
+
+=item *
+
+If not crippling, they may just not work.  Literally and figuratively, they either don't work (throw errors everywhere) or add so much overhead they might as well be throwing errors everywhere.
+
+=back
+
+=back
+
+=head1 How
+
+=over 
+
+=item  *
+
+Other Systems
+
+=over
+
+=item *
+
+We've gone over how other systems do it.  The main points are:
+
+=over
+
+=item *
+
+Too many places you have to define your forms.  I want to show a form based off of my database schema.  Why exactly do I need to define classes in addition to my schema structure for my forms when the schema is pretty capable of representing the form itself?
+
+=item *
+
+Unwieldy (they don't actually HELP with making forms easier to manage).
+
+=item *
+
+Too far to each extreme.  Either they want total control of your forms, or they don't want enough, yet require you to do as much work as you would doing it manually.  The trade-off isn't economically sound.
+
+
+=item *
+
+Nothing else Just Does It they way I<I> want it to.
+
+=back
+
+=back
+
+
+
+=head1 How it's all done
+
+Let's see some code already!
+
+
+=head1 You've Seen the Basics
+
+=over
+
+=item *
+
+We've gone over the basics of how Form::Sensible::Reflector::DBIC handles everything.  Let's get in depth and step through, from start to finish, how to reflect forms off of your DBIx::Class schema.
+
+=head1 Your Schema
+
+Obviously, you need this.  Basically, Form::Sensible::Reflector::DBIC treats a table as a form.  It is limited to this at this point, but that's something we'll get to in later slides.  Table columns then become form fields.  It makes sense, as this is also how a form is broken down, at least in the HTML/web sense.
+
+=head1 Your Schema (Cont'd)
+
+=begin perl
+
+# short example of column definitions inside your schema
+package Deimos::Schema::Result::Entry;
+use base qw/DBIx::Class::Core/;
+__PACKAGE__->load_components(qw/.../);
+__PACKAGE__->table('entries');
+__PACKAGE__->add_columns(
+ title => {
+        data_type   => 'varchar',
+        size        => 150,
+        is_nullable => 0,
+    },
+# and so on and so forth.
+
+
+=end perl
+
+=head1 Giving your Schema to Reflector::DBIC
+
+Okay, so now we need to give our schema/resultset to Reflector::DBIC.  This is Catalyst biased, but the semantics are all there.
+
+=head1 Reflector::DBIC Code Example
+
+=begin perl
+
+# inside a controller, or something
+my $resultset = $c->model('Database::Entry');
+my $reflector = Form::Sensible::Reflector::DBIC->new;
+my $form      = $reflector->reflect_from($resultset, 
+  { 
+    form => 
+    { 
+      name => "create_entry" 
+    } 
+  } 
+);
+
+
+=end perl
+
+=head1 Simple, no?
+
+That's all! That's all it takes to get a reasonable form out of your DBIC schema.  It looks something like this (this is using TinyMCE for textarea tags):
+
+=head1 Rendered Form
+
+G<pix/rendered_form.jpg>
+
+=head1 Comparisons, etc.
+
+In my opinion, this is a pretty sane way to render forms quickly.  Some may disagree, and that's perfectly fine.  However, I'm an advocate for whittling.  Start big, then pare and polish your way into something nice.  That's really how I tried to design this module, generate a generic form from a database schema, and then allow the user to tune it to their linking (see C<< render_hints >>, etc).
+
+
+=head1 The Good and the Bad
+
+Obviously, this has some drawbacks, as does all code.
+
+=over
+
+=item *
+
+Currently, relationships aren't really representable in Reflector::DBIC's state.  Form::Sensible itself does have some code (that will be migrated in) with C<< FSConnector >> that allows you to mess with these, however.
+
+=item *
+
+It's taken some time to get the field rendering properly.  People don't always want their primary key columns hidden by default, nor do they want a submit button added automatically, and C<< varchar(1024) >> isn't going to give you a textarea in the code's current state like it should.  These are tedious things, and rather annoying, so that is definitely an area that needs improvement.
+
+=back
+
+
+=head1 The Future
+
+Hopefully, this will grow into something usable by more people, with a more broad range of rendering options and a smarter and more configurable interface.
+
+At the moment, it fulfills its duty in keeping me sane while working on getting a user interface working for data entry etc. until more tuning is required. 
+
+=head1 Fin
+
+That's all folks!
+
+=cut
